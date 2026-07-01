@@ -20,6 +20,7 @@ Listio 是一个多用户待办管理系统。每个用户拥有独立的待办�
 | 拖拽 | @dnd-kit/core + @dnd-kit/sortable | 列表重排和看板列间拖拽 |
 | UI 组件 | shadcn/ui (base 风格) | 可定制源码组件 |
 | 样式 | Tailwind CSS v4 | shadcn/ui 默认样式方案 |
+| 主题切换 | next-themes | 暗色/亮色/跟随系统 |
 | 字体 | Inter + JetBrains Mono | 替代 Linear Display / Linear Mono |
 | 验证 | Zod | 服务端 API 输入校验 |
 | 包管理器 | pnpm | 性能优先 |
@@ -34,7 +35,7 @@ Listio 是一个多用户待办管理系统。每个用户拥有独立的待办�
 - 拖拽排序（列表视图行重排、看板列间拖拽）
 - 搜索过滤（关键词、状态、优先级、标签、截止日期）
 - API Token 生成（供 CLI/移动端/桌面端调用）
-- LINEAR 暗色主题（单一 dark mode，暂不做亮色模式）
+- LINEAR 暗色/亮色双主题（跟随系统偏好 + 手动切换，默认暗色）
 
 ---
 
@@ -292,7 +293,7 @@ Sidebar
 ├─ Navigation           列表导航
 │  ├─ NavListItem[]     每条列表（名称 + 任务数 badge + 颜色指示条）
 │  └─ CreateListButton  "+ 新建列表" 按钮
-└─ BottomActions        标签管理 | 设置
+└─ BottomActions        ThemeToggle | 标签管理 | 设置
 ```
 
 ### 5.2 列表详情页 `/app/lists/[id]`
@@ -385,47 +386,118 @@ SettingsPage
 
 ---
 
-## 7. 暗色主题系统
+## 7. 双主题系统
 
-### 7.1 CSS 变量映射
+支持暗色（默认）和亮色两个主题，通过 `next-themes` 实现。颜色来源于 DESIGN.md 的暗色 + inverse 色值 Token。
 
-DESIGN.md → shadcn CSS 变量，单一暗色主题（无 light mode）：
+### 7.1 实现方案
+
+- 使用 `next-themes` 的 `ThemeProvider`
+- 默认主题 `dark`，存储策略 `class`（在 `<html>` 上挂载 `.dark` / `.light`）
+- 用户手动切换后持久化到 `localStorage`
+- 无手动选择时跟随系统 `prefers-color-scheme`
+- Tailwind 通过 `darkMode: "class"` 激活
+
+### 7.2 暗色主题（默认）
+
+DESIGN.md 标准暗色画布 → shadcn CSS 变量：
 
 ```css
-@theme inline {
-  --color-background: hsl(222 20% 0.4%);    /* #010102 canvas */
-  --color-foreground: hsl(225 14% 97%);     /* #f7f8f8 ink */
-  --color-card: hsl(210 5% 6%);             /* #0f1011 surface-1 */
+:root,
+.dark {
+  --color-background: hsl(222 20% 0.4%);       /* #010102 canvas */
+  --color-foreground: hsl(225 14% 97%);        /* #f7f8f8 ink */
+  --color-card: hsl(210 5% 6%);                /* #0f1011 surface-1 */
   --color-card-foreground: hsl(225 14% 97%);
-  --color-popover: hsl(220 5% 10%);         /* #18191a surface-3 */
+  --color-popover: hsl(220 5% 10%);            /* #18191a surface-3 */
   --color-popover-foreground: hsl(225 14% 97%);
-  --color-primary: hsl(234 58% 62%);        /* #5e6ad2 lavender */
+  --color-primary: hsl(234 58% 62%);           /* #5e6ad2 lavender */
   --color-primary-foreground: hsl(0 0% 100%);
-  --color-secondary: hsl(210 5% 8%);        /* #141516 surface-2 */
+  --color-secondary: hsl(210 5% 8%);           /* #141516 surface-2 */
   --color-secondary-foreground: hsl(225 14% 97%);
   --color-muted: hsl(210 3% 10%);
-  --color-muted-foreground: hsl(220 10% 56%); /* #8a8f98 ink-subtle */
-  --color-accent: hsl(234 58% 62%);
+  --color-muted-foreground: hsl(220 10% 56%);  /* #8a8f98 ink-subtle */
+  --color-accent: hsl(234 58% 60%);
   --color-accent-foreground: hsl(0 0% 100%);
   --color-destructive: hsl(0 62% 50%);
   --color-destructive-foreground: hsl(0 0% 100%);
-  --color-border: hsl(225 9% 16%);          /* #23252a hairline */
+  --color-border: hsl(225 9% 16%);             /* #23252a hairline */
   --color-input: hsl(225 9% 16%);
-  --color-ring: hsl(234 56% 61%);           /* #5e69d1 primary-focus */
+  --color-ring: hsl(234 56% 61%);              /* #5e69d1 primary-focus */
   --radius: 0.5rem;
 }
 ```
 
-### 7.2 色彩使用原则
+### 7.3 亮色主题
 
-- 薰衣草蓝 `--primary` 仅用于：主按钮、focus ring、链接
+基于 DESIGN.md 的 inverse 色值 Token 推导，形成暗色主题的精准反转：
+
+```
+DESIGN.md inverse tokens → 亮色主题变量：
+
+inverse-canvas (#ffffff)       → --background
+inverse-surface-1 (#f5f6f6)   → --card
+inverse-surface-2 (#f6f7f7)   → --secondary
+inverse-ink (#000000)          → --foreground (柔化为 #1a1a1a)
+```
+
+```css
+.light {
+  --color-background: hsl(0 0% 100%);          /* #ffffff inverse-canvas */
+  --color-foreground: hsl(0 0% 10%);           /* #1a1a1a 柔化版 inverse-ink */
+  --color-card: hsl(210 5% 96%);               /* #f5f6f6 inverse-surface-1 */
+  --color-card-foreground: hsl(0 0% 10%);
+  --color-popover: hsl(210 20% 99%);           /* 比 canvas 略灰的弹出层 */
+  --color-popover-foreground: hsl(0 0% 10%);
+  --color-primary: hsl(234 58% 62%);           /* #5e6ad2 — 薰衣草蓝双主题同色 */
+  --color-primary-foreground: hsl(0 0% 100%);
+  --color-secondary: hsl(220 7% 97%);          /* #f6f7f7 inverse-surface-2 */
+  --color-secondary-foreground: hsl(0 0% 10%);
+  --color-muted: hsl(220 7% 97%);
+  --color-muted-foreground: hsl(220 8% 46%);   /* #6e737d 亮色 ink-subtle */
+  --color-accent: hsl(234 58% 60%);
+  --color-accent-foreground: hsl(0 0% 100%);
+  --color-destructive: hsl(0 72% 51%);         /* 亮色背景上红色略提亮 */
+  --color-destructive-foreground: hsl(0 0% 100%);
+  --color-border: hsl(240 5% 89%);             /* #e0e0e5 亮色 hairline */
+  --color-input: hsl(240 5% 89%);
+  --color-ring: hsl(234 56% 61%);              /* #5e69d1 */
+}
+```
+
+**亮色主题色值对照：**
+
+| 变量 | 暗色值 | 亮色值 | 来源 |
+|------|--------|--------|------|
+| `--background` | `#010102` | `#ffffff` | canvas ↔ inverse-canvas |
+| `--foreground` | `#f7f8f8` | `#1a1a1a` | ink ↔ inverse-ink（柔化） |
+| `--card` | `#0f1011` | `#f5f6f6` | surface-1 ↔ inverse-surface-1 |
+| `--secondary` | `#141516` | `#f6f7f7` | surface-2 ↔ inverse-surface-2 |
+| `--muted-fg` | `#8a8f98` | `#6e737d` | ink-subtle ↔ 等亮度反转 |
+| `--border` | `#23252a` | `#e0e0e5` | hairline ↔ 等亮度反转 |
+| `--primary` | `#5e6ad2` | `#5e6ad2` | 薰衣草蓝双主题同色 |
+| `--ring` | `#5e69d1` | `#5e69d1` | primary-focus 双主题同色 |
+
+### 7.4 主题切换 UI
+
+```
+AppShell Sidebar 底部的 ThemeToggle 按钮：
+- 点击循环切换 dark → light → system
+- 图标：dark = Moon, light = Sun, system = Monitor
+- 使用 shadcn DropdownMenu 或 ToggleGroup（2 个选项 + system）
+```
+
+### 7.5 色彩使用原则（双主题通用）
+
+- 薰衣草蓝 `--primary` 仅用于：主按钮、focus ring、链接 — 暗色/亮色主题同色
 - 不使用第二个强调色
 - `--destructive` 仅用于删除确认
 - 表面阶梯：`bg-card → bg-secondary → bg-muted`（3 级）
 - 所有卡片带 1px `border-border`，无 `box-shadow`
 - 不做渐变背景、不做 spotlight 高光
+- 暗色不做纯黑 (`#000000`)，亮色不做纯白标题 (`#000000` → 柔化为 `#1a1a1a`)
 
-### 7.3 字体
+### 7.6 字体
 
 ```css
 --font-sans: "Inter", "SF Pro Display", -apple-system, system-ui, sans-serif;
@@ -434,18 +506,21 @@ DESIGN.md → shadcn CSS 变量，单一暗色主题（无 light mode）：
 
 - Inter weight 500/600 替代 Linear Text
 - `tracking-tight` 用于 headlines 近似负字间距
+- 暗色/亮色主题字体相同
 
-### 7.4 shadcn 组件变体映射
+### 7.7 shadcn 组件变体映射
 
-| shadcn variant | DESIGN 组件 | 效果 |
-|---|---|---|
-| `Button variant="default"` | `button-primary` | 薰衣草蓝底白字 |
-| `Button variant="secondary"` | `button-secondary` | surface-1 底 + hairline 边框 |
-| `Button variant="ghost"` | `button-tertiary` | 透明底 |
-| `Button variant="outline"` | — | surface-1 底 + hairline 边框 |
-| `Card` | `feature-card` | surface-1 底，rounded-lg，hairline 边框 |
-| `Input` | `text-input` | surface-1 底，rounded-md |
-| `Badge variant="secondary"` | `status-badge` | surface-2 底 |
+| shadcn variant | 暗色效果 | 亮色效果 | 说明 |
+|---|---|---|---|
+| `Button variant="default"` | 薰衣草蓝底白字 | 薰衣草蓝底白字 | 双主题同色 |
+| `Button variant="secondary"` | surface-1 底 + hairline | inverse-surface-1 底 + hairline | 自动跟随 |
+| `Button variant="ghost"` | 透明底 | 透明底 | 自动跟随 |
+| `Button variant="outline"` | surface-1 底 + hairline | inverse-surface-1 底 + hairline | 自动跟随 |
+| `Card` | surface-1 底，hairline 边框 | inverse-surface-1 底，hairline 边框 | 自动跟随 |
+| `Input` | surface-1 底 | inverse-surface-1 底 | 自动跟随 |
+| `Badge variant="secondary"` | surface-2 底 | inverse-surface-2 底 | 自动跟随 |
+
+所有映射通过 CSS 变量自动跟随主题，**shadcn 组件源码无需修改**。
 
 ---
 
@@ -464,7 +539,7 @@ listio/
 │   │   ├── app/
 │   │   │   ├── layout.tsx              RootLayout + Providers
 │   │   │   ├── page.tsx                / → 重定向
-│   │   │   ├── globals.css             shadcn 主题变量
+│   │   │   ├── globals.css             shadcn 双主题 CSS 变量
 │   │   │   ├── login/
 │   │   │   │   └── page.tsx            登录页
 │   │   │   ├── api/
@@ -486,6 +561,8 @@ listio/
 │   │   │
 │   │   ├── components/
 │   │   │   ├── ui/                     shadcn 基础组件
+│   │   │   ├── theme-provider.tsx      next-themes Provider 封装
+│   │   │   ├── theme-toggle.tsx        主题切换按钮
 │   │   │   ├── sidebar.tsx
 │   │   │   ├── todo-item-row.tsx
 │   │   │   ├── todo-list-view.tsx
@@ -539,7 +616,6 @@ listio/
 
 ## 10. 已知限制与未来规划
 
-- **v1 不做亮色模式** — DESIGN.md 规范仅定义暗色，但 CSS 变量结构兼容未来添加
 - **v1 不做分页** — 个人待办数据量级预期不高，全量返回
 - **v1 不做富文本** — `notes` 字段为纯文本
 - **v1 不做 WebSocket/实时同步** — 多端同时操作依赖乐观更新 + 手动刷新
