@@ -1,14 +1,24 @@
 "use client"
 
 import Link from "next/link"
-import { usePathname } from "next/navigation"
-import { useQuery } from "@tanstack/react-query"
+import { useState } from "react"
+import { usePathname, useRouter } from "next/navigation"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
 import { ThemeToggle } from "@/components/theme-toggle"
 import { Tag, Settings, LogOut, Plus } from "lucide-react"
 import { signOut } from "next-auth/react"
 import { api } from "@/lib/api"
 import { cn } from "@/lib/utils"
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog"
+import { toast } from "sonner"
 
 type ListWithCounts = {
   id: string
@@ -28,6 +38,10 @@ type AuthUser = {
 
 export function Sidebar({ user }: { user: AuthUser }) {
   const pathname = usePathname()
+  const router = useRouter()
+  const queryClient = useQueryClient()
+  const [dialogOpen, setDialogOpen] = useState(false)
+  const [newListName, setNewListName] = useState("")
 
   const { data: lists = [] } = useQuery<ListWithCounts[]>({
     queryKey: ["lists"],
@@ -61,6 +75,61 @@ export function Sidebar({ user }: { user: AuthUser }) {
         <div className="mb-2 flex items-center justify-between px-2">
           <span className="text-xs font-medium text-muted-foreground">列表</span>
         </div>
+        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+          <DialogTrigger render={
+            <Button variant="ghost" size="sm" className="w-full justify-start gap-2 text-muted-foreground hover:text-foreground">
+              <Plus className="size-4" />
+              新建列表
+            </Button>
+          } />
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>新建列表</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4 pt-4">
+              <Input
+                value={newListName}
+                onChange={(e) => setNewListName(e.target.value)}
+                placeholder="列表名称"
+                onKeyDown={async (e) => {
+                  if (e.key === "Enter" && newListName.trim()) {
+                    try {
+                      const list = await api.post<{ id: string }>("/api/v1/lists", {
+                        name: newListName.trim(),
+                      })
+                      queryClient.invalidateQueries({ queryKey: ["lists"] })
+                      setDialogOpen(false)
+                      setNewListName("")
+                      router.push(`/app/lists/${list.id}`)
+                    } catch {
+                      toast.error("创建失败")
+                    }
+                  }
+                }}
+              />
+              <Button
+                className="w-full"
+                onClick={async () => {
+                  if (newListName.trim()) {
+                    try {
+                      const list = await api.post<{ id: string }>("/api/v1/lists", {
+                        name: newListName.trim(),
+                      })
+                      queryClient.invalidateQueries({ queryKey: ["lists"] })
+                      setDialogOpen(false)
+                      setNewListName("")
+                      router.push(`/app/lists/${list.id}`)
+                    } catch {
+                      toast.error("创建失败")
+                    }
+                  }
+                }}
+              >
+                创建
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
         {lists.map((list) => (
           <Link
             key={list.id}
