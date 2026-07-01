@@ -40,7 +40,7 @@ export function FilterBar({
         placeholder="搜索任务..."
         className="h-8 max-w-[200px] text-sm"
       />
-      <Select value={statusFilter} onValueChange={onStatusChange}>
+      <Select value={statusFilter} onValueChange={(v) => v && onStatusChange(v)}>
         <SelectTrigger className="h-8 w-[100px] text-sm">
           <SelectValue placeholder="状态" />
         </SelectTrigger>
@@ -51,7 +51,7 @@ export function FilterBar({
           <SelectItem value="DONE">已完成</SelectItem>
         </SelectContent>
       </Select>
-      <Select value={priorityFilter} onValueChange={onPriorityChange}>
+      <Select value={priorityFilter} onValueChange={(v) => v && onPriorityChange(v)}>
         <SelectTrigger className="h-8 w-[100px] text-sm">
           <SelectValue placeholder="优先级" />
         </SelectTrigger>

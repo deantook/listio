@@ -13,7 +13,7 @@ export function apiError(code: string, message: string, status: number) {
 
 export function handleError(err: unknown) {
   if (err instanceof ZodError) {
-    return apiError("VALIDATION", err.errors.map(e => e.message).join("; "), 422)
+    return apiError("VALIDATION", err.issues.map(e => e.message).join("; "), 422)
   }
   console.error(err)
   return apiError("INTERNAL", "服务器内部错误", 500)
@@ -24,7 +24,7 @@ export async function getAuthUser() {
   if (!session?.user?.id) {
     throw new Error("UNAUTHORIZED")
   }
-  return session.user
+  return session.user as { id: string; name?: string | null; email?: string | null; image?: string | null }
 }
 
 export async function requireAuth() {
