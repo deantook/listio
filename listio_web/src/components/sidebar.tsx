@@ -1,0 +1,118 @@
+"use client"
+
+import Link from "next/link"
+import { usePathname } from "next/navigation"
+import { useQuery } from "@tanstack/react-query"
+import { Button } from "@/components/ui/button"
+import { ThemeToggle } from "@/components/theme-toggle"
+import { Tag, Settings, LogOut, Plus } from "lucide-react"
+import { signOut } from "next-auth/react"
+import { api } from "@/lib/api"
+import { cn } from "@/lib/utils"
+
+type ListWithCounts = {
+  id: string
+  name: string
+  color: string | null
+  sortOrder: number
+  _count: { items: number }
+  completedCount: number
+}
+
+type AuthUser = {
+  id?: string | null
+  name?: string | null
+  email?: string | null
+  image?: string | null
+}
+
+export function Sidebar({ user }: { user: AuthUser }) {
+  const pathname = usePathname()
+
+  const { data: lists = [] } = useQuery<ListWithCounts[]>({
+    queryKey: ["lists"],
+    queryFn: () => api.get("/api/v1/lists"),
+  })
+
+  return (
+    <aside className="flex w-60 shrink-0 flex-col border-r border-border bg-card">
+      {/* User info */}
+      <div className="flex items-center gap-2 border-b border-border p-3">
+        <div className="flex size-7 items-center justify-center rounded-full bg-primary text-xs font-medium text-primary-foreground">
+          {user.name?.charAt(0) || user.email?.charAt(0) || "U"}
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-sm font-medium text-foreground">
+            {user.name || user.email}
+          </p>
+        </div>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="size-7"
+          onClick={() => signOut({ callbackUrl: "/login" })}
+        >
+          <LogOut className="size-3.5" />
+        </Button>
+      </div>
+
+      {/* Lists */}
+      <div className="flex-1 overflow-y-auto p-2">
+        <div className="mb-2 flex items-center justify-between px-2">
+          <span className="text-xs font-medium text-muted-foreground">列表</span>
+        </div>
+        {lists.map((list) => (
+          <Link
+            key={list.id}
+            href={`/app/lists/${list.id}`}
+            className={cn(
+              "flex items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-secondary",
+              pathname.startsWith(`/app/lists/${list.id}`)
+                ? "bg-secondary text-foreground"
+                : "text-muted-foreground"
+            )}
+          >
+            {list.color && (
+              <div
+                className="size-2.5 shrink-0 rounded-full"
+                style={{ backgroundColor: list.color }}
+              />
+            )}
+            <span className="flex-1 truncate">{list.name}</span>
+            <span className="text-xs text-muted-foreground tabular-nums">
+              {list._count.items}
+            </span>
+          </Link>
+        ))}
+      </div>
+
+      {/* Bottom actions */}
+      <div className="border-t border-border p-2 space-y-1">
+        <Link
+          href="/app/tags"
+          className={cn(
+            "flex items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-secondary",
+            pathname === "/app/tags" ? "bg-secondary text-foreground" : "text-muted-foreground"
+          )}
+        >
+          <Tag className="size-4" />
+          标签管理
+        </Link>
+        <Link
+          href="/app/settings"
+          className={cn(
+            "flex items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-secondary",
+            pathname === "/app/settings" ? "bg-secondary text-foreground" : "text-muted-foreground"
+          )}
+        >
+          <Settings className="size-4" />
+          设置
+        </Link>
+        <div className="flex items-center justify-between rounded-md px-2 py-1">
+          <span className="text-sm text-muted-foreground">主题</span>
+          <ThemeToggle />
+        </div>
+      </div>
+    </aside>
+  )
+}
