@@ -15,19 +15,12 @@ RUN pnpm install --frozen-lockfile
 
 COPY . .
 
-# 生成 Prisma Client
 ARG DATABASE_URL=postgresql://placeholder:placeholder@localhost:5432/placeholder
 ENV DATABASE_URL=$DATABASE_URL
 RUN npx prisma generate
 
-# 构建 Next.js（standalone 模式）
 ENV NEXT_TELEMETRY_DISABLED=1
 RUN pnpm build
-
-# 将 Prisma CLI 及其依赖解引用复制到平层目录（解决 pnpm symlink 问题）
-RUN mkdir -p /prisma-deps && \
-    cp -Lr node_modules/prisma /prisma-deps/ && \
-    cp -Lr node_modules/@prisma /prisma-deps/
 
 # ============================================================
 # Stage 3: runner — 生产运行镜像
@@ -38,22 +31,17 @@ WORKDIR /app
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 
+# 全局安装 prisma CLI（依赖解析由 npm 保证，避免 pnpm symlink 问题）
+RUN npm install -g prisma@latest
+
 RUN addgroup --system --gid 1001 nodejs && \
     adduser --system --uid 1001 nextjs
 
-# 复制 standalone 输出（包含 @prisma/client 等 serverExternalPackages）
 COPY --from=builder /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
-
-# 复制 Prisma schema 和生成的文件
 COPY --from=builder --chown=nextjs:nodejs /app/prisma ./prisma
 
-# 复制 Prisma CLI 及依赖（已解引用，无 symlink）
-COPY --from=builder --chown=nextjs:nodejs /prisma-deps/prisma ./node_modules/prisma
-COPY --from=builder --chown=nextjs:nodejs /prisma-deps/@prisma ./node_modules/@prisma
-
-# 入口脚本
 COPY --chown=nextjs:nodejs docker-entrypoint.sh ./
 RUN chmod +x docker-entrypoint.sh
 
