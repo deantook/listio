@@ -31,17 +31,18 @@ WORKDIR /app
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 
-# 本地安装 prisma + dotenv（prisma.config.ts 需要 import from "prisma/config" 和 "dotenv/config"）
-RUN npm install prisma@latest dotenv
-
 RUN addgroup --system --gid 1001 nodejs && \
     adduser --system --uid 1001 nextjs
 
+# 先复制 standalone 输出（包含裁剪后的 node_modules）
 COPY --from=builder /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 COPY --from=builder --chown=nextjs:nodejs /app/prisma ./prisma
 COPY --from=builder --chown=nextjs:nodejs /app/prisma.config.ts ./prisma.config.ts
+
+# 再安装 prisma CLI + dotenv（追加到已有 node_modules，不冲突）
+RUN npm install prisma@latest dotenv
 
 COPY --chown=nextjs:nodejs docker-entrypoint.sh ./
 RUN chmod +x docker-entrypoint.sh
