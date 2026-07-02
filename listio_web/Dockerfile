@@ -24,6 +24,11 @@ RUN npx prisma generate
 ENV NEXT_TELEMETRY_DISABLED=1
 RUN pnpm build
 
+# 将 Prisma CLI 及其依赖解引用复制到平层目录（解决 pnpm symlink 问题）
+RUN mkdir -p /prisma-deps && \
+    cp -Lr node_modules/prisma /prisma-deps/ && \
+    cp -Lr node_modules/@prisma /prisma-deps/
+
 # ============================================================
 # Stage 3: runner — 生产运行镜像
 # ============================================================
@@ -41,10 +46,12 @@ COPY --from=builder /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
-# 复制 Prisma（schema + migrations + generated client + CLI）
+# 复制 Prisma schema 和生成的文件
 COPY --from=builder --chown=nextjs:nodejs /app/prisma ./prisma
-COPY --from=builder --chown=nextjs:nodejs /app/node_modules/prisma ./node_modules/prisma
-COPY --from=builder --chown=nextjs:nodejs /app/node_modules/@prisma ./node_modules/@prisma
+
+# 复制 Prisma CLI 及依赖（已解引用，无 symlink）
+COPY --from=builder --chown=nextjs:nodejs /prisma-deps/prisma ./node_modules/prisma
+COPY --from=builder --chown=nextjs:nodejs /prisma-deps/@prisma ./node_modules/@prisma
 
 # 入口脚本
 COPY --chown=nextjs:nodejs docker-entrypoint.sh ./
