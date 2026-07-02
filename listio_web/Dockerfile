@@ -31,8 +31,9 @@ WORKDIR /app
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 
-# 全局安装 prisma CLI（依赖解析由 npm 保证，避免 pnpm symlink 问题）
-RUN npm install -g prisma@latest
+# Prisma CLI（全局安装，用于迁移）+ dotenv（本地安装，prisma.config.ts 需要）
+RUN npm install -g prisma@latest && \
+    npm install dotenv
 
 RUN addgroup --system --gid 1001 nodejs && \
     adduser --system --uid 1001 nextjs
@@ -41,6 +42,7 @@ COPY --from=builder /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 COPY --from=builder --chown=nextjs:nodejs /app/prisma ./prisma
+COPY --from=builder --chown=nextjs:nodejs /app/prisma.config.ts ./prisma.config.ts
 
 COPY --chown=nextjs:nodejs docker-entrypoint.sh ./
 RUN chmod +x docker-entrypoint.sh
