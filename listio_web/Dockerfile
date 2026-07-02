@@ -31,9 +31,8 @@ WORKDIR /app
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 
-# Prisma CLI（全局安装，用于迁移）+ dotenv（本地安装，prisma.config.ts 需要）
-RUN npm install -g prisma@latest && \
-    npm install dotenv
+# 本地安装 prisma + dotenv（prisma.config.ts 需要 import from "prisma/config" 和 "dotenv/config"）
+RUN npm install prisma@latest dotenv
 
 RUN addgroup --system --gid 1001 nodejs && \
     adduser --system --uid 1001 nextjs

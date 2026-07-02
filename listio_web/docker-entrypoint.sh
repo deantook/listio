@@ -8,7 +8,7 @@ fi
 
 # Run database migrations
 echo "Running database migrations..."
-prisma migrate deploy
+npx prisma migrate deploy
 
 # Start the application
 echo "Starting Listio..."
