@@ -11,10 +11,190 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
-import { Copy, Trash2, Plus } from "lucide-react"
+import { Copy, Trash2, Plus, Pencil, Key, Mail, Loader2 } from "lucide-react"
 import { api } from "@/lib/api"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { toast } from "sonner"
+
+function EmailSection() {
+  const { data: session, update } = useSession()
+  const [isEditing, setIsEditing] = useState(false)
+  const [email, setEmail] = useState("")
+
+  const bindEmail = useMutation({
+    mutationFn: (newEmail: string) =>
+      api.patch<{ email: string }>("/api/v1/user/email", { email: newEmail }),
+    onSuccess: () => {
+      toast.success("邮箱已更新")
+      setIsEditing(false)
+      update()
+    },
+    onError: (err: Error) => {
+      toast.error(err.message || "更新失败")
+    },
+  })
+
+  const handleSave = () => {
+    if (email.trim()) {
+      bindEmail.mutate(email.trim())
+    }
+  }
+
+  if (isEditing) {
+    return (
+      <div className="space-y-3">
+        <div className="flex gap-2">
+          <Input
+            type="email"
+            placeholder="your@email.com"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+          />
+          <Button
+            onClick={handleSave}
+            disabled={!email.trim() || bindEmail.isPending}
+          >
+            {bindEmail.isPending && <Loader2 className="mr-1 size-3 animate-spin" />}
+            保存
+          </Button>
+          <Button variant="ghost" onClick={() => setIsEditing(false)}>
+            取消
+          </Button>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="flex items-center justify-between">
+      <div className="flex items-center gap-2">
+        <Mail className="size-4 text-muted-foreground" />
+        <span className="text-sm text-muted-foreground">
+          {session?.user?.email || "未绑定邮箱"}
+        </span>
+      </div>
+      <Button
+        variant="ghost"
+        size="sm"
+        onClick={() => {
+          setEmail(session?.user?.email || "")
+          setIsEditing(true)
+        }}
+      >
+        <Pencil className="mr-1 size-3" />
+        {session?.user?.email ? "修改" : "绑定"}
+      </Button>
+    </div>
+  )
+}
+
+function PasswordSection() {
+  const queryClient = useQueryClient()
+  const [isEditing, setIsEditing] = useState(false)
+  const [currentPassword, setCurrentPassword] = useState("")
+  const [newPassword, setNewPassword] = useState("")
+
+  const { data: passwordStatus } = useQuery({
+    queryKey: ["user-password-status"],
+    queryFn: () => api.get<{ hasPassword: boolean }>("/api/v1/user/password"),
+  })
+
+  const hasPassword = passwordStatus?.hasPassword ?? false
+
+  const passwordMutation = useMutation({
+    mutationFn: (data: { password?: string; currentPassword?: string; newPassword?: string }) =>
+      api.patch<{ message: string }>("/api/v1/user/password", data),
+    onSuccess: (data) => {
+      toast.success(data.message || "操作成功")
+      setIsEditing(false)
+      setCurrentPassword("")
+      setNewPassword("")
+      queryClient.invalidateQueries({ queryKey: ["user-password-status"] })
+    },
+    onError: (err: Error) => {
+      toast.error(err.message || "操作失败")
+    },
+  })
+
+  const handleSubmit = () => {
+    if (hasPassword) {
+      passwordMutation.mutate({ currentPassword, newPassword })
+    } else {
+      passwordMutation.mutate({ password: newPassword })
+    }
+  }
+
+  if (isEditing) {
+    return (
+      <div className="space-y-3">
+        {hasPassword && (
+          <div className="space-y-1.5">
+            <span className="text-xs text-muted-foreground">当前密码</span>
+            <Input
+              type="password"
+              placeholder="输入当前密码"
+              value={currentPassword}
+              onChange={(e) => setCurrentPassword(e.target.value)}
+            />
+          </div>
+        )}
+        <div className="space-y-1.5">
+          <span className="text-xs text-muted-foreground">
+            {hasPassword ? "新密码" : "设置密码"}
+          </span>
+          <Input
+            type="password"
+            placeholder="至少8个字符"
+            value={newPassword}
+            onChange={(e) => setNewPassword(e.target.value)}
+          />
+        </div>
+        <div className="flex gap-2">
+          <Button
+            onClick={handleSubmit}
+            disabled={
+              (hasPassword && (!currentPassword || !newPassword)) ||
+              (!hasPassword && !newPassword) ||
+              passwordMutation.isPending
+            }
+          >
+            {passwordMutation.isPending && <Loader2 className="mr-1 size-3 animate-spin" />}
+            保存
+          </Button>
+          <Button
+            variant="ghost"
+            onClick={() => {
+              setIsEditing(false)
+              setCurrentPassword("")
+              setNewPassword("")
+            }}
+          >
+            取消
+          </Button>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="flex items-center justify-between">
+      <div className="flex items-center gap-2">
+        <Key className="size-4 text-muted-foreground" />
+        <span className="text-sm text-muted-foreground">
+          {hasPassword ? "密码已设置" : "未设置密码"}
+        </span>
+      </div>
+      <Button
+        variant="ghost"
+        size="sm"
+        onClick={() => setIsEditing(true)}
+      >
+        <Pencil className="mr-1 size-3" />
+        {hasPassword ? "修改" : "设置"}
+      </Button>
+    </div>
+  )
+}
 
 export default function SettingsPage() {
   const { data: session } = useSession()
@@ -65,6 +245,26 @@ export default function SettingsPage() {
               <p className="text-xs text-muted-foreground">{session?.user?.email}</p>
             </div>
           </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>邮箱</CardTitle>
+          <CardDescription>绑定或修改你的登录邮箱</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <EmailSection />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>密码</CardTitle>
+          <CardDescription>设置密码后可使用邮箱密码登录</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <PasswordSection />
         </CardContent>
       </Card>
 

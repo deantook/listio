@@ -51,3 +51,21 @@ export const createTokenSchema = z.object({
 export const bindTagSchema = z.object({
   tagId: z.string(),
 })
+
+export const bindEmailSchema = z.object({
+  email: z.string().email("无效的邮箱格式"),
+})
+
+export const setPasswordSchema = z.object({
+  password: z.string().min(8, "密码至少需要8个字符").max(128, "密码不能超过128个字符"),
+})
+
+export const changePasswordSchema = z.object({
+  currentPassword: z.string().min(1, "请输入当前密码"),
+  newPassword: z.string().min(8, "密码至少需要8个字符").max(128, "密码不能超过128个字符"),
+})
+
+export const loginSchema = z.object({
+  email: z.string().email("无效的邮箱格式"),
+  password: z.string().min(1, "请输入密码"),
+})

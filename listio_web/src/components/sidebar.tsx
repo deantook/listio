@@ -51,7 +51,7 @@ export function Sidebar({ user }: { user: AuthUser }) {
   return (
     <aside className="flex w-60 shrink-0 flex-col border-r border-border bg-card">
       {/* User info */}
-      <div className="flex items-center gap-2 border-b border-border p-3">
+      <div className="flex h-14 items-center gap-2 border-b border-border px-4">
         <div className="flex size-7 items-center justify-center rounded-full bg-primary text-xs font-medium text-primary-foreground">
           {user.name?.charAt(0) || user.email?.charAt(0) || "U"}
         </div>

@@ -19,7 +19,7 @@ export function ListHeader({ listName }: { listName: string }) {
   }
 
   return (
-    <div className="flex items-center justify-between border-b border-border px-4 py-3">
+    <div className="flex h-14 items-center justify-between border-b border-border px-4">
       <h1 className="text-lg font-semibold text-foreground">{listName}</h1>
       <div className="flex items-center gap-1 rounded-lg bg-muted p-0.5">
         <button
