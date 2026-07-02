@@ -24,7 +24,9 @@ RUN pnpm install --frozen-lockfile
 
 COPY . .
 
-# 生成 Prisma Client
+# 生成 Prisma Client（需要占位 DATABASE_URL 来解析配置，不会真实连接数据库）
+ARG DATABASE_URL=postgresql://placeholder:placeholder@localhost:5432/placeholder
+ENV DATABASE_URL=$DATABASE_URL
 RUN npx prisma generate
 
 # 构建 Next.js（standalone 模式）
